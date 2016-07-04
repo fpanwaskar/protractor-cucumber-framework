@@ -1,10 +1,10 @@
 var q = require('q'),
-    path = require('path'),
-    glob = require('glob'),
-    assign = require('object-assign'),
-    debug = require('debug')('protractor-cucumber-framework'),
-    Cucumber = require('cucumber'),
-    state = require('./lib/runState');
+  path = require('path'),
+  glob = require('glob'),
+  assign = require('object-assign'),
+  debug = require('debug')('protractor-cucumber-framework'),
+  Cucumber = require('cucumber'),
+  state = require('./lib/runState');
 
 /**
  * Execute the Runner's test cases through Cucumber.
@@ -24,11 +24,29 @@ exports.run = function(runner, specs) {
     return q.promise(function(resolve, reject) {
       var cliArguments = convertOptionsToCliArguments(opts);
       cliArguments.push('--require', path.resolve(__dirname, 'lib', 'resultsCapturer.js'));
-      cliArguments = cliArguments.concat(specs);
+      opts.require = convertRequireOptionValuesToCliValues(opts.require);
+      opts.require.push(path.resolve(__dirname, 'lib', 'resultsCapturer.js'));
+      opts.tags = [opts.tags] // settings tags manually for now this is expected to be an array
+      opts.version = '1.2.0';
+      opts.name = [];
+      opts.dryRun = undefined;
+      opts.failFast = undefined;
+      opts.profile = [];
+      opts.colors = true;
+      opts.compiler = [];
+      opts.snippetSyntax = undefined;
+      opts.strict = undefined;
 
       debug('cucumber command: "' + cliArguments.join(' ') + '"');
+      var cucumberConf = Cucumber.Cli.Configuration(opts, specs);
+      var runtime = Cucumber.Runtime(cucumberConf);
+      var formatters = cucumberConf.getFormatters();
+      formatters.forEach(function (formatter) {
+        runtime.attachListener(formatter);
+      });
 
-      Cucumber.Cli(cliArguments).run(function (isSuccessful) {
+      this.global.runtime = runtime;
+      runtime.start(function(isSuccessful) {
         try {
           var complete = q();
           if (runner.getConfig().onComplete) {
@@ -41,6 +59,20 @@ exports.run = function(runner, specs) {
           reject(err);
         }
       });
+
+      // Cucumber.Cli(cliArguments).run(function(isSuccessful) {
+      //   try {
+      //     var complete = q();
+      //     if (runner.getConfig().onComplete) {
+      //       complete = q(runner.getConfig().onComplete());
+      //     }
+      //     complete.then(function() {
+      //       resolve(results);
+      //     });
+      //   } catch (err) {
+      //     reject(err);
+      //   }
+      // });
     });
   });
 
@@ -51,14 +83,13 @@ exports.run = function(runner, specs) {
       var cliArgumentValues = convertOptionValueToCliValues(option, options[option]);
 
       if (Array.isArray(cliArgumentValues)) {
-        cliArgumentValues.forEach(function (value) {
+        cliArgumentValues.forEach(function(value) {
           cliArguments.push('--' + option, value);
         });
       } else if (cliArgumentValues) {
         cliArguments.push('--' + option);
       }
     }
-
     return cliArguments;
   }
 
@@ -67,7 +98,9 @@ exports.run = function(runner, specs) {
 
     return toArray(values).map(function(path) {
       // Handle glob matching
-      return glob.sync(path, {cwd: configDir});
+      return glob.sync(path, {
+        cwd: configDir
+      });
     }).reduce(function(opts, globPaths) {
       // Combine paths into flattened array
       return opts.concat(globPaths);
@@ -99,4 +132,4 @@ exports.run = function(runner, specs) {
   function toArray(values) {
     return Array.isArray(values) ? values : [values];
   }
-};
+}
