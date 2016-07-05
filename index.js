@@ -26,7 +26,7 @@ exports.run = function(runner, specs) {
       cliArguments.push('--require', path.resolve(__dirname, 'lib', 'resultsCapturer.js'));
       opts.require = convertRequireOptionValuesToCliValues(opts.require);
       opts.require.push(path.resolve(__dirname, 'lib', 'resultsCapturer.js'));
-      opts.tags = [opts.tags] // settings tags manually for now this is expected to be an array
+      opts.tags = opts.tags ? [opts.tags] : [] // settings tags manually for now this is expected to be an array
       opts.version = '1.2.0';
       opts.name = [];
       opts.dryRun = undefined;
